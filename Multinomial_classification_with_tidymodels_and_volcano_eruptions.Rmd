@@ -5,26 +5,96 @@ date: "6/2/2021"
 output: html_document
 ---
 
+https://juliasilge.com/blog/multinomial-volcano-eruptions/
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE, message = FALSE, dpi = 180, fig.width = 8, fig.height = 5)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r}
+library(tidyverse)
 ```
 
-## Including Plots
+Let's build a multiclass random forest clasifier to predict the type of volcano based on other volcano characteristics like latitude, longitude, tectonic setting, etc. 
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+volcano_raw <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-05-12/volcano.csv')
+volcano_raw %>% count(primary_volcano_type, sort = TRUE)
+```
+```{r}
+volcano_df <- volcano_raw %>% transmute(volcano_type = case_when(str_detect(primary_volcano_type,
+                                                              "Stratovolcano")~"Stratovolcano",
+                                                   str_detect(primary_volcano_type, "Shield")~"Shield",
+                                                   TRUE ~ "Other"),
+                          volcano_number, latitude, longitude, elevation, tectonic_settings, major_rock_1) %>% 
+  mutate_if(is.character, factor)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+library(maps)
+world <- map_data("world")
+
+ggplot() + 
+  geom_map(data = world, map = world, aes(x = long, y = lat, map_id = region), color = "white", fill = "gray50", alpha = 0.2) +
+  geom_point(data = volcando_df, aes(longitude, latitude, color = volcano_type), alpha = 0.8)
+```
+
+## Build a model
+
+```{r}
+library(tidymodels)
+volcano_boot <- bootstraps(volcano_df)
+volcano_boot 
+```
+
+```{r, error= FALSE, message = FALSE}
+library(themis)
+```
+
+```{r}
+volcano_recipe <- recipe(volcano_type ~ ., data = volcano_df) %>% 
+  update_role(volcano_number, new_role = "Id") %>% 
+  step_other(tectonic_settings) %>% 
+  step_other(major_rock_1) %>% 
+  step_dummy(tectonic_settings, major_rock_1) %>% 
+  step_zv(all_predictors()) %>% 
+  step_normalize(all_predictors()) %>% 
+  step_smote(volcano_type)
+```
+
+```{r}
+volcano_prep <- prep(volcano_recipe)
+```
+
+```{r}
+juice(volcano_prep) %>% count(volcano_type)
+```
+
+```{r}
+rf_spec <- rand_forest(trees = 1000) %>%
+  set_mode("classification") %>% 
+  set_engine("ranger")
+rf_spec
+```
+
+```{r}
+volcano_wf <- workflow() %>% add_recipe(volcano_recipe) %>% 
+  add_model(rf_spec)
+
+volcano_wf
+```
+```{r, echo = FALSE}
+volcano_res <- fit_resamples(
+  volcano_wf,
+  resamples = volcano_boot,
+  control = control_resamples(save_pred = TRUE,
+                              verbose = TRUE)
+)
+```
+
+```{r, echo=FALSE}
+volcano_res
+```
+
+## Explore Results
