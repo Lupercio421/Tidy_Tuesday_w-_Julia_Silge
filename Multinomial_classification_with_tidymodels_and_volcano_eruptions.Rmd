@@ -37,7 +37,7 @@ world <- map_data("world")
 
 ggplot() + 
   geom_map(data = world, map = world, aes(x = long, y = lat, map_id = region), color = "white", fill = "gray50", alpha = 0.2) +
-  geom_point(data = volcando_df, aes(longitude, latitude, color = volcano_type), alpha = 0.8)
+  geom_point(data = volcano_df, aes(longitude, latitude, color = volcano_type), alpha = 0.8)
 ```
 
 ## Build a model
@@ -98,3 +98,71 @@ volcano_res
 ```
 
 ## Explore Results
+
+```{r}
+volcano_res %>% collect_metrics() 
+```
+
+```{r}
+volcano_res %>% collect_predictions() %>% conf_mat(volcano_type, .pred_class)
+```
+
+```{r}
+volcano_res %>% collect_predictions() %>% ppv(volcano_type, .pred_class)
+```
+
+```{r}
+volcano_res %>% collect_predictions() %>% group_by(id) %>% ppv(volcano_type, .pred_class) %>% ggplot(aes(.estimate)) + geom_histogram(bins = 100)
+```
+
+```{r}
+library(vip)
+```
+
+```{r}
+rf_spec %>%
+  set_engine("ranger", importance = "permutation") %>%
+  fit(
+    volcano_type ~ .,
+    data = juice(volcano_prep) %>%
+      select(-volcano_number) %>%
+      janitor::clean_names()
+  ) %>%
+  vip(geom = "point")
+```
+
+
+```{r}
+volcano_res %>% collect_predictions() %>% mutate(correct = volcano_type == .pred_class) %>% count(correct)
+```
+
+```{r}
+volcano_pred <- volcano_res %>%
+  collect_predictions() %>%
+  mutate(correct = volcano_type == .pred_class) %>%
+  left_join(volcano_df %>%
+    mutate(.row = row_number()))
+
+volcano_pred
+```
+
+
+```{r}
+ggplot() +
+  geom_map(
+    data = world, map = world,
+    aes(long, lat, map_id = region),
+    color = "white", fill = "gray50", size = 0.05, alpha = 0.5
+  ) +
+  stat_summary_hex(
+    data = volcano_pred,
+    aes(longitude, latitude, z = as.integer(correct)),
+    fun = "mean",
+    alpha = 0.7, bins = 50
+  ) +
+  scale_fill_gradient(high = "cyan3", labels = scales::percent) +
+  labs(x = NULL, y = NULL, fill = "Percent classified\ncorrectly")
+```
+
+
+
