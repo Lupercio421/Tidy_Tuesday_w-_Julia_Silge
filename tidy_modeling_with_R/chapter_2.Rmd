@@ -7,24 +7,50 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r}
+arrange(.data = mtcars, gear, mpg)
 ```
 
-## Including Plots
+### 2.1.2 REUSE EXISTING DATA STRUCTURES
 
-You can also embed plots, for example:
+As an example, the rsample package can be used to create resamples of a data set, such as cross-validation or the bootstrap (described in Chapter 10). 
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+boot_samp <- rsample::bootstraps(mtcars, times = 3); 
+boot_samp
+class(boot_samp)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+One important feature in the tibble produced by rsample is that the $splits$ column is a list. In this instance, each element of the list has the same type of object: an $rsplit$ object that contains the information about which rows of $mtcars$ belong in the bootstrap sample. List columns can be very useful in data analysis and, as will be seen throughout this book, are important to tidymodels.
+
+### 2.1.3 DESIGN FOR THE PIPE AND FUNCTIONAL PROGRAMMING
+
+The magrittr pipe operator (%>%) is a tool for chaining together a sequence of R functions.
+
+```{r}
+small_mtcars <- arrange(mtcars, gear)
+small_mtcars <- slice(small_mtcars, 1:10)
+
+# or more compactly:
+small_mtcars <- slice(arrange(mtcars, gear), 1:10)
+```
+
+Using the pipe operator:
+
+```{r}
+small_mtcars <- 
+  mtcars %>% 
+  arrange(gear) %>% 
+  slice(1:10)
+```
+
+```{r}
+library(ggplot2)
+ggplot(mtcars, aes(x = wt, y = mpg)) +
+  geom_point() + 
+  geom_smooth(method = lm)
+```
+
