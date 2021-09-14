@@ -53,4 +53,64 @@ ggplot(mtcars, aes(x = wt, y = mpg)) +
   geom_point() + 
   geom_smooth(method = lm)
 ```
+Suppose you are interested in the logarithm of the ratio of the fuel efficiency to the car weight. To those new to R and/or coming from other programming languages, a loop might seem like a good option:
 
+```{r}
+n <- nrow(mtcars)
+ratios <- rep(NA_real_, n)
+for (car in 1:n) {
+  ratios[car] <- log(mtcars$mpg[car]/mtcars$wt[car])
+}
+```
+
+```{r}
+head(ratios)
+```
+
+Those with more experience in R may know that there is a much simpler and faster vectorized version that can be computed by:
+```{r}
+ratios <- log(mtcars$mpg/mtcars$wt)
+```
+
+When we design for functional programming, it is important that the output only depends on the inputs and that the function has no side effects. Violations of these ideas in the following function are shown with comments:
+
+```{r}
+compute_log_ratio <- function(mpg, wt) {
+  log_base <- getOption("log_base", default = exp(1)) # gets external data
+  results <- log(mpg/wt, base = log_base)
+  print(mean(results))                                # prints to the console
+  done <<- TRUE                                       # sets external data
+  results
+}
+```
+
+A better version would be:
+
+```{r}
+compute_log_ratio <- function(mpg, wt, log_base = exp(1)) {
+  log(mpg/wt, base = log_base)
+}
+```
+
+The most basic function, map(), always returns a list and uses the basic syntax of map(vector, function). For example, to take the square-root of our data, we could:
+
+```{r}
+map(head(mtcars$mpg,3), sqrt)
+```
+
+```{r}
+map_dbl(head(mtcars$mpg,3), sqrt)
+```
+
+There are also mapping functions that operate across multiple vectors:
+```{r}
+ratios <- map2_dbl(mtcars$mpg, mtcars$wt, compute_log_ratio)
+head(ratios)
+```
+
+
+The map() functions also allow for temporary, anonymous functions defined using the tilde character. The argument values are .x and .y for map2():
+```{r}
+map2_dbl(mtcars$mpg, mtcars$wt, ~ log(.x/.y)) %>% 
+  head()
+```
