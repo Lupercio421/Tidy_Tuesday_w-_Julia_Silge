@@ -114,3 +114,35 @@ The map() functions also allow for temporary, anonymous functions defined using 
 map2_dbl(mtcars$mpg, mtcars$wt, ~ log(.x/.y)) %>% 
   head()
 ```
+
+## 2.2 Examples of Tidyverse Syntax
+
+Tibbles have slightly different rules than basic data frames in R. For example, tibbles naturally work with column names that are not syntactically valid variable names:
+
+```{r}
+tbbl <- tibble("variable 1" = 1:2, two = 3:4)
+tbbl  
+```
+
+To demonstrate some syntax, let’s use tidyverse functions to read in data that could be used in modeling. The data set comes from the city of Chicago’s data portal and contains daily ridership data for the city’s elevated train stations. 
+
+```{r, error = FALSE}
+library(lubridate)
+```
+
+```{r}
+url <- "http://bit.ly/raw-train-data-csv"
+
+all_stations <- 
+  # Step 1: Read in the data.
+  read_csv(url) %>% 
+  # Step 2: filter columns and rename stationname
+  dplyr::select(station = stationname, date, rides) %>%
+  # Step 3: Convert the character date field to a date encoding.
+  # Also, put the data in units of 1K rides
+  mutate(date = mdy(date), rides = rides / 1000) %>% 
+  # Step 4: Summarize the multiple records using the maximum.
+  group_by(date, station) %>% 
+  summarize(rides = max(rides), .groups = "drop")
+```
+

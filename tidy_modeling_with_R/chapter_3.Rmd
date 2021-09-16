@@ -1,0 +1,33 @@
+---
+title: 'Chapter 3: A review of R modeling fundamentals'
+author: "Daniel L."
+date: "9/15/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 3.1 AN EXAMPLE
+
+To demonstrate these fundamentals, let’s use experimental data from McDonald (2009), by way of Mangiafico (2015), on the relationship between the ambient temperature and the rate of cricket chirps per minute. Data were collected for two species: O. exclamationis and O. niveus.
+
+```{r}
+library(tidyverse)
+
+data(crickets, package = "modeldata")
+names(crickets)
+```
+
+Plot the temperature on the x-axis, the chirp rate on the y-axis. The plot elements will be colored differently for each species:
+
+```{r}
+ggplot(crickets, aes(x = temp, y = rate, col = species)) + 
+  #Plot points for each data point and color by species
+  geom_point() + 
+  # Show a simple linear model fit created separately for each species:
+  geom_smooth(method = lm, se = FALSE) +
+  labs(x = "Temperature (C)", y = "Chirp Rate (per minute)")
+```
+
