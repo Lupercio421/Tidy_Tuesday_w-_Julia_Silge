@@ -31,3 +31,25 @@ ggplot(crickets, aes(x = temp, y = rate, col = species)) +
   labs(x = "Temperature (C)", y = "Chirp Rate (per minute)")
 ```
 
+R has many functions that are useful inside of formulas. For example, $poly(x, 3)$ creates linear, quadratic, and cubic terms for $x$ to the model as main effects. The splines package also has several functions to create nonlinear spline terms in the formula.
+
+Returning to our chirping crickets, let’s use a two-way interaction model. In this book, we use the suffix _fit for R objects that are fitted models.
+
+```{r}
+interaction_fit <- lm(rate ~ (temp + species)^2, data = crickets);
+interaction_fit
+```
+
+Before going into any inferential results for this model, the fit should be assessed using diagnostic plots. We can use the plot() method for lm objects. This method produces a set of four plots for the object, each showing different aspects of the fit. Two plots are shown here:
+
+```{r}
+# Place two plots next to one another:
+par(mfrow = c(1,2))
+
+# Show residuals vs predicted values:
+plot(interaction_fit, which = 1)
+
+# A normal quantile plot on the residuals:
+plot(interaction_fit, which = 2)
+```
+
