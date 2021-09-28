@@ -82,8 +82,86 @@ new_values <- data.frame(species = "O. exclamationis", temp = 15:20)
 predict(main_effect_fit, new_values)
 ```
 
+## 3.2 What does the R formula do?
+
+For the most part, practitioners’ conception of what the formula does is dominated by the last purpose. Our focus when typing out a formula is often to declare how the columns should be used. For example, the previous specification we discussed sets up predictors to be used in a specific way:
+
+
+(temp+species)^2
+
+## 3.3 Why TIDINESS IS IMPORTANT FOR MODELING
+
+here are three common methods for creating a scatter plot of two numeric variables in a data frame called $\textbf{plot_data}$:
 
 ```{r}
+# plot(plot_data$x, plot_data$y)
+
+#library(lattice)
+#xyplot(y~x, data = plot_data)
+
+# library(ggplot2)
+# ggplot(plot_data, aes(x = x, y =y)) + geom_point()
 ```
+
+When models make predictions, the vast majority require all of the predictors to have complete values. There are several options baked in to R at this point with the generic function $na.action()$. This sets the policy for how a function should behave if there are missing values. The two most common policies are $na.fail()$ and $na.omit()$. The former produces an error if missing data are present while the latter removes the missing data prior to calculations by case-wise deletion. From our previous example:
+
+```{r}
+# Add a missing value to the prediction set
+new_values$temp[1] <- NA
+```
+
+```{r}
+# The predict method for `lm` defaults to `na.pass`:
+predict(main_effect_fit, new_values)
+```
+
+```{r}
+# Alternatively 
+predict(main_effect_fit, new_values, na.action = na.fail)
+```
+
+```{r}
+predict(main_effect_fit, new_values, na.action = na.omit)
+```
+
+The $broom::tidy()$ function, which we use throughout this book, is another tool for standardizing the structure of R objects. It can return many types of R objects in a more usable format. For example, suppose that predictors are being screened based on their correlation to the outcome column. Using $purrr::map()$, the results from $cor.test()$ can be returned in a list for each predictor:
+```{r}
+corr_res <- map(mtcars %>% select(-mpg), cor.test, y = mtcars$mpg)
+
+# The first of ten results in the vector: 
+corr_res[[1]]
+```
+
+If we want to use these results in a plot, the standard format of hypothesis test results are not very useful. The $tidy()$ method can return this as a tibble with standardized names:
+
+```{r}
+library(broom)
+tidy(corr_res[[1]])
+```
+
+
+These results can be “stacked” and added to a ggplot():
+
+```{r}
+corr_res %>% 
+  # Convert each to a tidy format; `map_dfr()` stacks the data frames 
+  map_dfr(tidy, .id = "predictor") %>% 
+  ggplot(aes(x = fct_reorder(predictor, estimate))) +
+  geom_point(aes(y = estimate)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = .1) +
+  labs(x = NULL, y = "Correlation with mpg")
+```
+
+## 3.5 THE TIDYMODELS METAPACKAGE
+
+There are a few ways to handle naming conflicts. The function can be called with its namespace (e.g., stats::filter()). This is not bad practice but it does make the code less readable.
+
+Another option is to use the $conflicted$ package. We can set a rule that remains in effect until the end of the R session to ensure that one specific function will always run if no namespace is given in the code. As an example, if we prefer the $dplyr$ version of the above function:
+
+```{r}
+library(conflicted)
+conflict_prefer("filter", winner = "dplyr")
+```
+
 
 
