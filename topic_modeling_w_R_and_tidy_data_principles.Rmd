@@ -1,0 +1,66 @@
+---
+title: "Topic modeling with R and tidy data principles"
+author: "Daniel L."
+date: "9/7/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message = FALSE}
+library(tidyverse)
+library(tidytext)
+library(gutenbergr)
+```
+
+```{r, message = FALSE}
+sherlock_raw <- gutenberg_download(1661)
+
+```
+
+```{r}
+sherlock <- sherlock_raw %>% mutate(story = ifelse(str_detect(text, "ADVENTURE"), text, NA)) %>% fill(story) %>% 
+  filter(story != "THE ADVENTURES OF SHERLOCK HOLMES") %>% 
+  mutate(story = factor(story, levels = unique(story)))
+
+tidy_sherlock <- sherlock %>% 
+  mutate(line = row_number()) %>% 
+  tidytext::unnest_tokens(word,text) %>% 
+  anti_join(stop_words) %>% 
+  filter(word != "holmes")
+
+```
+
+#### Exploration of tf-idf
+
+```{r}
+sherlock_tf_idf <- tidy_sherlock %>% 
+  count(story, word, sort = TRUE) %>% 
+  bind_tf_idf(word, story, n) %>% 
+  group_by(story) %>% 
+  top_n(10) %>% 
+  ungroup
+
+sherlock_tf_idf %>% 
+  mutate(word = reorder_within(word, tf_idf, story)) %>% 
+  ggplot(aes(word, tf_idf, fill = story)) + 
+  geom_col(alpha = 0.8, show.legend = FALSE) +
+  facet_wrap(~ story, scales = "free", ncol = 3) +
+  scale_x_reordered() +
+  coord_flip() + 
+  theme(strip.text = element_text(size = 11)) + 
+  labs(x = NULL, y = "tf-idf",
+       title = "Highest tf-idf words in Sherlock Holmes short stories",
+       subtitle = "Individual stories focus on different characters and narrative elements")
+```
+
+### Implement topic modeling
+
+```{r, message = FALSE}
+library(Rcpp)
+library(quanteda)
+library(stm)
+```
+
