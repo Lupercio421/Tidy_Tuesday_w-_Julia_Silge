@@ -1,0 +1,72 @@
+---
+title: 'Chapter 5: Spending our data'
+author: "Daniel L."
+date: "01/22/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 5.1 COMMON METHODS FOR SPLITTING DATA
+
+The primary approach for empirical model validation is to split the existing pool of data into two distinct sets. Some observations are used to develop and optimize the model. This $training$ set is usually the majority of the data. These data are a sandbox for model building where different models can be fit, feature engineering strategies are investigated, and so on. We as modeling practitioners spend the vast majority of the modeling process using the training set as the substrate to develop the model.
+
+The other portion of the observations are placed into the $test$ set. This is held in reserve until one or two models are chosen as the methods that are most likely to succeed. The test set is then used as the final arbiter to determine the efficacy of the model. It is critical to only look at the test set once; otherwise, it becomes part of the modeling process.
+
+Suppose we allocate 80% of the data to the training set and the remaining 20% for testing. The most common method is to use simple random sampling. The $\textbf{rsample}$ package has tools for making data splits such as this; the function initial_split was created for this purpose. It takes the data frame as an argument as well as the proportion to be placed into training. Using the previous data frame produced by the code snippet from the summary in Section 4.2:
+
+```{r}
+library(tidymodels)
+tidymodels_prefer()
+
+# Set the random number stream using `set.seed()` so that the results can be reproduced later. 
+set.seed(123)
+
+# Save the split information for an 80/20 split of the data
+ames_split <- initial_split(ames, prop = 0.80)
+ames_split
+```
+
+The printed information denotes the amount of data in the training set n = 2344, the amount in the test set (n = 586), and the size of the original pool of samples (n = 2930)
+
+The object $ames_split$ is an $rsplit$ object and only contains the partitioning information; to get the resulting data sets, we apply two more functions:
+
+```{r}
+ames_train <- training(ames_split)
+ames_test  <-  testing(ames_split)
+
+dim(ames_train)
+```
+
+When there is a dramatic class imbalance in classification problems, one class occurs much less frequently than another. Using a simple random sample may haphazardly allocate these infrequent samples disproportionately into the training or test set. To avoid this, stratified sampling can be used. The training/test split is conducted separately within each class and then these subsamples are combined into the overall training and test set. For regression problems, the outcome data can be artificially binned into quartiles and then stratified sampling conducted four separate times. This is an effective method for keeping the distributions of the outcome similar between the training and test set.
+
+The distribution of the sale price outcome for the Ames housing data is shown in Figure 5.1. As previously discussed, the sale price distribution is right-skewed, with proportionally more inexpensive houses than expensive houses on either side of the center of the distribution. The worry here is that the more expensive houses would not be represented in the training set well with simple splitting; this would increase the risk that our model would be ineffective at predicting the price for such properties. The dotted vertical lines in Figure 5.1 indicate the four quartiles for these data. A stratified random sample would conduct the 80/20 split within each of these data subsets and then pool the results together. In $rsample$, this is achieved using the strata argument:
+
+
+```{r}
+set.seed(123)
+ames_split <- initial_split(ames, prop = 0.80, strata = Sale_Price)
+ames_train <- training(ames_split)
+ames_test  <-  testing(ames_split)
+
+dim(ames_train)
+```
+
+## 5.6 Chapter Summary
+
+Data splitting is the fundamental tool for empirical validation of models. Even in the era of unrestrained data collection, a typical modeling project has a limited amount of appropriate data and wise “spending” of a project’s data is necessary. In this chapter, we discussed several strategies for partitioning the data into distinct groups for modeling and evaluation.
+
+At this checkpoint, the important code snippets are:
+```{r}
+library(tidymodels)
+data(ames)
+ames <- ames %>% mutate(Sale_Price = log10(Sale_Price))
+
+set.seed(123)
+ames_split <- initial_split(ames, prop = 0.80, strata = Sale_Price)
+ames_train <- training(ames_split)
+ames_test  <-  testing(ames_split)
+```
+
