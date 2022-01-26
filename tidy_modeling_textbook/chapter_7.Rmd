@@ -103,3 +103,42 @@ fit(lm_workflow, ames_train)
 
 
 ## 7.4 HOW DOES A WORKFLOW USE THE FORMULA?
+
+A workflow is a general purpose interface. When $\textbf{add_formula()}$ is used, how should the workflow pre-process the data? Since the preprocessing is model dependent, workflows attempts to emulate what the underlying model would do whenever possible. If it is not possible, the formula processing should not do anything to the columns used in the formula. Let’s look at this in more detail.
+
+### TREE-BASED MODELS
+
+When we fit a tree to the data, the parsnip package understands what the modeling function would do. For example, if a random forest model is fit using the $ranger$ or $randomForest$ packages, the workflow knows predictors columns that are factors should be left as-is.
+
+As a counter example, a boosted tree created with the xgboost package requires the user to create dummy variables from factor predictors (since xgboost::xgb.train() will not). This requirement is embedded into the model specification object and a workflow using xgboost will create the indicator columns for this engine. Also note that a different engine for boosted trees, C5.0, does not require dummy variables so none are made by the workflow.
+
+A number of multilevel models have standardized on a formula specification devised in the lme4 package. For example, to fit a regression model that has random effects for subjects, we would use the following formula:
+
+```{r}
+# library(lme4)
+# data(Orthodont)
+# lmer(distance ~ Sex + (age | Subject), data = Orthodont)
+```
+
+```{r}
+library(survival)
+parametric_model <- surv_reg() %>% set_engine("survival")
+```
+
+```{r}
+parametric_workflow <- workflow() %>% 
+  # Pass the data along as-is:
+  add_variables(outcome = c(fustat, futime), predictors = c(age, rx)) %>% 
+  add_model(parametric_model, 
+            #This formula is given to the model
+            formula = Surv(futime, fustat) ~ age + strata(rx))
+
+parametric_fit <- fit(parametric_workflow, data = ovarian)
+
+print(parametric_fit)
+```
+
+```{r}
+?add_model()
+```
+
