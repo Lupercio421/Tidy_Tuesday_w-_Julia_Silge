@@ -1,7 +1,7 @@
 ---
 title: 'Chapter 7: A model workflow'
 author: "Daniel L."
-date: "01/25/2021"
+date: "01/25/2022"
 output: html_document
 ---
 
@@ -140,5 +140,70 @@ print(parametric_fit)
 
 ```{r}
 ?add_model()
+```
+
+## CREATING MULTIPLE WORKFLOWS AT ONCE
+
+It can become tedious or onerous to create a lot of workflows from different sets of preprocessors and/or model specifications. To address this problem, the workflowset package creates combinations of workflow components. A list of preprocessors (e.g., formulas, dplyr selectors, or feature engineering recipe objects discussed in the next chapter) can be combined with a list of model specifications, resulting in a set of workflows.
+
+As an example, let’s say that we want to focus on the different ways that house location is represented in the Ames data. We can create a set of formulas that capture these predictors:
+
+```{r}
+location <- list(
+  longitude = Sale_Price ~ Longitude,
+  latitude = Sale_Price ~ Latitude,
+  coords = Sale_Price ~ Longitude ~ Latitude,
+  neighborhood = Sale_Price ~ Neighborhood
+)
+```
+
+These representations can be crossed with one or more models using the workflow_set() function. We’ll just use the previous linear model specification to demonstrate:
+
+```{r}
+library(workflowsets)
+location_models <- workflow_set(preproc = location, models = list(lm = lm_model))
+location_models
+print(location_models$info[[1]])
+print(extract_workflow(location_models, id = "coords_lm"))
+```
+
+Workflow sets are mostly designed to work with resampling, which is discussed in Chapter 10. In the object above, the columns option and result must be populated with specific types of objects that result from resampling. We will demonstrate this in more detail in Chapters 11 and 15.
+
+In the meantime, let’s create model fits for each formula and save them in a new column called fit. We’ll use basic dplyr and purrr operations:
+
+```{r}
+location_models <- location_models %>% mutate(fit = map(info, ~ fit(.x$workflow[[1]], ames_train)))
+
+location_models
+
+print(location_models$fit[[1]])
+```
+
+## 7.7 Chapter Summary
+
+In this chapter, you learned that the modeling process encompasses more than just estimating the parameters of an algorithm that connects predictors to an outcome. This process also includes preprocessing steps and operations taken after a model is fit. We introduced a concept called a model workflow that can capture the important components of the modeling process. Multiple workflows can also be created inside of a workflow set.
+
+
+For the Ames data, the code used in the later chapter is:
+
+```{r}
+library(tidymodels)
+data(ames)
+
+ames <- mutate(ames, Sale_Price = log10(Sale_Price))
+
+set.seed(123)
+ames_split <- initial_split(ames, prop = 0.80, strata = Sale_Price)
+ames_train <- training(ames_split)
+ames_test  <-  testing(ames_split)
+
+lm_model <- linear_reg() %>% set_engine("lm")
+
+lm_wflow <- 
+  workflow() %>% 
+  add_model(lm_model) %>% 
+  add_formula(Sale_Price ~ Longitude + Latitude)
+
+lm_fit <- fit(lm_wflow, ames_train)
 ```
 

@@ -60,7 +60,7 @@ Data splitting is the fundamental tool for empirical validation of models. Even 
 
 At this checkpoint, the important code snippets are:
 ```{r}
-#library(tidymodels)
+library(tidymodels)
 data(ames)
 ames <- ames %>% mutate(Sale_Price = log10(Sale_Price))
 

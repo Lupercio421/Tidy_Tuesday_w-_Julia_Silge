@@ -1,0 +1,61 @@
+---
+title: 'Chapter 8: Feature engineering with recipes'
+author: "Daniel L."
+date: "01/31/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Imagine that you have two predictors in a data set that can be more effectively represented in your model of interest as a ratio; creating a new predictor from the ratio of the original two is a simple example of feature engineering.
+
+There are many other examples of preprocessing to build better features for modeling:
+- Correlation between predictors can be reduced via feature extraction or the removal of some predictors.
+- When some predictors have missing values, they can be imputed using a sub-model.
+- Models that use variance-type measures may benefit from coercing the distribution of some skewed predictors to be symmetric by estimating a transformation.
+
+In this chapter, we introduce the recipes package which you can use to combine different feature engineering and preprocessing tasks into a single object and then apply these transformations to different data sets.
+
+This chapter uses the Ames housing data and the R objects created in the book so far, as summarized in Section 7.7.
+
+## 8.1 A Simple Recipe for the Ames Housing Data
+
+Suppose that an initial ordinary linear regression model were fit to these data. Recalling that, in Chapter 4, the sale prices were pre-logged, a standard call to lm() might look like:
+
+lm(Sale_Price ~ Neighborhood + log10(Gr_Liv_Area) + Year_Built + Bldg_Type, data = ames)
+
+As mentioned in Chapter 3, the formula method will apply these data manipulations to any data, including new data, that are passed to the predict() function.
+
+A recipe is also an object that defines a series of steps for data processing. Unlike the formula method inside a modeling function, the recipe defines the steps without immediately executing them; it is only a specification of what should be done. Here is a recipe equivalent to the formula above that builds on the code summary in Section 5.6:
+
+```{r}
+library(tidymodels)
+tidymodels_prefer()
+
+simple_ames <- 
+  recipe(Sale_Price ~ Neighborhood + Gr_Liv_Area + Year_Built + Bldg_Type, data = ames_train) %>% 
+  step_log(Gr_Liv_Area, base = 10) %>% 
+  step_dummy(all_nominal_predictors())
+
+print(simple_ames)
+```
+
+1. The call to recipe() with a formula tells the recipe the roles of the variables (e.g., predictor, outcome). It only uses the data ames_train to determine the data types for the columns.
+
+2. step_log() declares that Gr_Liv_Area should be log transformed.
+
+3. step_dummy() is used to specify which variables should be converted from a qualitative format to a quantitative format, in this case, using dummy or indicator variables. An indicator or dummy variable is a binary numeric variable (a column of ones and zeroes) that encodes qualitative information; we will dig deeper into these kinds of variables in Section 8.4.1.
+
+What is the advantage to using a recipe? There are a few, including:
+
+- These computations can be recycled across models since they are not tightly coupled to the modeling function.
+
+- A recipe enables a broader set of data processing choices than formulas can offer.
+
+- The syntax can be very compact. For example, all_nominal_predictors() can be used to capture many variables for specific types of processing while a formula would require each to be explicitly listed.
+
+- All data processing can be captured in a single R object instead of in scripts that are repeated, or even spread across different files.
+
+## 8.2 Using Recipes
